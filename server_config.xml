@@ -1,0 +1,5 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<server>
+	<self outside_listen_port="0" inside_listen_port="3701" server_type="3" server_id="1"/>
+	<connection max_count="100"/>
+</server>
