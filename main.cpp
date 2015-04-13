@@ -34,6 +34,7 @@ using namespace FRAME;
 REGIST_CONFIG(USER_BASEINFO, UserBaseInfo)
 REGIST_CONFIG(USER_BLACKLIST, UserBlackList)
 REGIST_CONFIG(USER_UNREADMSGLIST, UserUnreadMsgList)
+REGIST_CONFIG(USER_SESSIONINFO, UserSessionInfo)
 
 int32_t InitNetAndTimer(CNetHandler *pNetHandler)
 {

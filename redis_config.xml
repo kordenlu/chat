@@ -3,8 +3,9 @@
 	<node server_id="1" server_address="127.0.0.1" server_port="6379" channel_key="client:chat:req" channel_mode="subscribe"/>
 	<node server_id="1" server_address="127.0.0.1" server_port="6379" channel_key="client:chat:resp"/>
 	<node server_id="1" server_address="127.0.0.1" server_port="6379" channel_key="user:baseinfo:"/>
-	<node server_id="1" server_address="127.0.0.1" server_port="6379" channel_key="accountinfo:"/>
+	<node server_id="1" server_address="127.0.0.1" server_port="6379" channel_key="user:sessioninfo:"/>
 	<node server_id="1" server_address="127.0.0.1" server_port="6379" channel_key="user:blacklist:"/>
-	<node server_id="1" server_address="127.0.0.1" server_port="6379" channel_key="unhandle:userlist"/>
+	<node server_id="1" server_address="127.0.0.1" server_port="6379" channel_key="user:unreadmsglist:"/>
+	<node server_id="1" server_address="127.0.0.1" server_port="6379" channel_key="server:statussync:noti"/>
 </redis>
 
