@@ -50,7 +50,7 @@ public:
 
 	int32_t ChatToOne(ICtlHead *pCtlHead, IMsgHead *pMsgHead, IMsgBody *pMsgBody, uint8_t *pBuf, int32_t nBufSize);
 
-	int32_t OnSessionGetBlackList(int32_t nResult, void *pReply, void *pSession);
+	int32_t OnSessionExistInBlackList(int32_t nResult, void *pReply, void *pSession);
 
 	int32_t OnSessionGetUserUnreadMsgCount(int32_t nResult, void *pReply, void *pSession);
 

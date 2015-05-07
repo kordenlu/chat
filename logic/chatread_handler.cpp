@@ -16,7 +16,6 @@
 #include "../../include/control_head.h"
 #include "../../include/typedef.h"
 #include "../../include/sync_msg.h"
-#include "../config/msgdispatch_config.h"
 #include "../config/string_config.h"
 #include "../server_typedef.h"
 #include "../bank/redis_bank.h"
@@ -36,6 +35,14 @@ int32_t CChatReadHandler::ChatRead(ICtlHead *pCtlHead, IMsgHead *pMsgHead, IMsgB
 	if(pMsgHeadCS == NULL)
 	{
 		return 0;
+	}
+
+	if(pControlHead->m_nUin != pMsgHeadCS->m_nSrcUin)
+	{
+		CRedisBank *pRedisBank = (CRedisBank *)g_Frame.GetBank(BANK_REDIS);
+		CRedisChannel *pClientRespChannel = pRedisBank->GetRedisChannel(pControlHead->m_nGateID, CLIENT_RESP);
+
+		return CServerHelper::KickUser(pControlHead, pMsgHeadCS, pClientRespChannel, KickReason_NotLogined);
 	}
 
 	CChatReadReq *pChatReadReq = dynamic_cast<CChatReadReq *>(pMsgBody);
@@ -65,8 +72,7 @@ int32_t CChatReadHandler::ChatRead(ICtlHead *pCtlHead, IMsgHead *pMsgHead, IMsgB
 
 	uint8_t arrRespBuf[MAX_MSG_SIZE];
 
-	CMsgDispatchConfig *pMsgDispatchConfig = (CMsgDispatchConfig *)g_Frame.GetConfig(CONFIG_MSGDISPATCH);
-	CRedisChannel *pRespChannel = pRedisBank->GetRedisChannel(pMsgDispatchConfig->GetChannelKey(MSGID_CHATREAD_RESP));
+	CRedisChannel *pRespChannel = pRedisBank->GetRedisChannel(CLIENT_RESP);
 
 	CChatReadResp stChatReadResp;
 	stChatReadResp.m_nResult = CChatReadResp::enmResult_OK;
@@ -212,9 +218,8 @@ int32_t CChatReadHandler::OnSessionGetUserSessionInfo(int32_t nResult, void *pRe
 
 		uint8_t arrRespBuf[MAX_MSG_SIZE];
 
-		CMsgDispatchConfig *pMsgDispatchConfig = (CMsgDispatchConfig *)g_Frame.GetConfig(CONFIG_MSGDISPATCH);
 		CRedisBank *pRedisBank = (CRedisBank *)g_Frame.GetBank(BANK_REDIS);
-		CRedisChannel *pPushClientChannel = pRedisBank->GetRedisChannel(stCtlHead.m_nGateID, pMsgDispatchConfig->GetChannelKey(MSGID_STATUSSYNC_NOTI));
+		CRedisChannel *pPushClientChannel = pRedisBank->GetRedisChannel(stCtlHead.m_nGateID, CLIENT_RESP);
 		if(pPushClientChannel != NULL)
 		{
 			uint16_t nTotalSize = CServerHelper::MakeMsg(&stCtlHead, &stMsgHeadCS, &stStatusSyncNoti, arrRespBuf, sizeof(arrRespBuf));
@@ -234,9 +239,8 @@ int32_t CChatReadHandler::OnRedisSessionTimeout(void *pTimerData)
 	RedisSession *pRedisSession = (RedisSession *)pTimerData;
 	UserSession *pUserSession = (UserSession *)pRedisSession->GetSessionData();
 
-	CMsgDispatchConfig *pMsgDispatchConfig = (CMsgDispatchConfig *)g_Frame.GetConfig(CONFIG_MSGDISPATCH);
 	CRedisBank *pRedisBank = (CRedisBank *)g_Frame.GetBank(BANK_REDIS);
-	CRedisChannel *pRespChannel = pRedisBank->GetRedisChannel(pMsgDispatchConfig->GetChannelKey(MSGID_CHATTOONE_RESP));
+	CRedisChannel *pRespChannel = pRedisBank->GetRedisChannel(CLIENT_RESP);
 	if(pRespChannel == NULL)
 	{
 		WRITE_WARN_LOG(SERVER_NAME, "it's not found redis channel by msgid!{msgid=%d, srcuin=%u, dstuin=%u}\n", MSGID_CHATTOONE_RESP,
