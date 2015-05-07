@@ -8,14 +8,14 @@ ifeq ($(mode),d)
 	LIB_DIR = $(DEBUG_LIB_DIR)
 	BIN_DIR = $(BASE_DIR)/bin/Debug
 	CPPFLAGS= -g -gdwarf-2 -fPIC -Wall -DDEBUG $(INC) -Wno-invalid-offsetof
-	LDFLAGS = -g -fPIC -L$(LIB_DIR) -lpthread -lnetevent -llogger -lcommon -lframe -lcommon -ltinyxml -lhiredis -lrt -levent
+	LDFLAGS = -g -fPIC -L$(LIB_DIR) -lpthread -llogger -lcommon -lframe -lnetevent -lcommon -ltinyxml -lhiredis -lrt -levent
 	DEBUG_TARGET = $(BIN_DIR)/chat$(BIN_SUFFIX)
 	TARGET	= $(DEBUG_TARGET)
 else
 	LIB_DIR = $(RELEASE_LIB_DIR)
 	BIN_DIR = $(BASE_DIR)/bin/Release
 	CPPFLAGS= -g -fPIC -Wall $(INC) -Wno-invalid-offsetof
-	LDFLAGS = -g -fPIC -L$(LIB_DIR) -lpthread -lnetevent -llogger -lcommon -lframe -ltinyxml -lhiredis -lrt -levent
+	LDFLAGS = -g -fPIC -L$(LIB_DIR) -lpthread -llogger -lcommon -lframe -lnetevent -lcommon -ltinyxml -lhiredis -lrt -levent
 	RELEASE_TARGET = $(BIN_DIR)/chat$(BIN_SUFFIX)
 	TARGET	= $(RELEASE_TARGET)
 endif

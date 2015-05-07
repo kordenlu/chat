@@ -1,7 +1,0 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
-<msg>
-	<param msgid="602" channel_key="client:chat:resp"/>
-	<param msgid="605" channel_key="client:chat:resp"/>
-	<param msgid="60200" channel_key="server:statussync:noti"/>
-</msg>
-
