@@ -26,11 +26,14 @@ class CChatToOneHandler : public CBaseObject
 		UserSession()
 		{
 			m_nMsgSize = 0;
+			m_nChatApnsSize = 0;
 		}
 		ControlHead			m_stCtlHead;
 		MsgHeadCS			m_stMsgHeadCS;
 		uint16_t				m_nMsgSize;
 		uint8_t				m_arrMsg[1024];
+		int32_t				m_nChatApnsSize;
+		uint8_t				m_arrChatApns[50];
 	};
 
 public:
