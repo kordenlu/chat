@@ -9,5 +9,6 @@
 	<node server_id="1" server_address="127.0.0.1" server_port="6379" channel_key="topic:info:"/>
 	<node server_id="1" server_address="127.0.0.1" server_port="6379" channel_key="user:jointopics:"/>
 	<node server_id="1" server_address="127.0.0.1" server_port="6379" channel_key="topic:comments:"/>
+	<node server_id="1" server_address="127.0.0.1" server_port="6379" channel_key="push:apns"/>
 </redis>
 
