@@ -15,7 +15,6 @@
 #include "../../include/cachekey_define.h"
 #include "../../include/control_head.h"
 #include "../../include/typedef.h"
-#include "../../include/sync_msg.h"
 #include "../config/string_config.h"
 #include "../server_typedef.h"
 #include "../bank/redis_bank.h"
@@ -50,8 +49,6 @@ int32_t CChatReadHandler::ChatRead(ICtlHead *pCtlHead, IMsgHead *pMsgHead, IMsgB
 	{
 		return 0;
 	}
-
-	UserBlackList *pUserBlackList = (UserBlackList *)g_Frame.GetConfig(USER_BLACKLIST);
 
 	CRedisSessionBank *pRedisSessionBank = (CRedisSessionBank *)g_Frame.GetBank(BANK_REDIS_SESSION);
 	RedisSession *pSession = pRedisSessionBank->CreateSession(this, static_cast<RedisReply>(&CChatReadHandler::OnSessionGetUserUnreadMsgCount),
@@ -210,21 +207,10 @@ int32_t CChatReadHandler::OnSessionGetUserSessionInfo(int32_t nResult, void *pRe
 
 	if(bGetSessionSuccess)
 	{
-		MsgHeadCS stMsgHeadCS;
-		stMsgHeadCS.m_nMsgID = MSGID_STATUSSYNC_NOTI;
-		stMsgHeadCS.m_nDstUin = pUserSession->m_stMsgHeadCS.m_nDstUin;
-
-		CStatusSyncNoti stStatusSyncNoti;
-
-		uint8_t arrRespBuf[MAX_MSG_SIZE];
-
 		CRedisBank *pRedisBank = (CRedisBank *)g_Frame.GetBank(BANK_REDIS);
 		CRedisChannel *pPushClientChannel = pRedisBank->GetRedisChannel(stCtlHead.m_nGateID, CLIENT_RESP);
-		if(pPushClientChannel != NULL)
-		{
-			uint16_t nTotalSize = CServerHelper::MakeMsg(&stCtlHead, &stMsgHeadCS, &stStatusSyncNoti, arrRespBuf, sizeof(arrRespBuf));
-			pPushClientChannel->RPush(NULL, (char *)arrRespBuf, nTotalSize);
-		}
+
+		CServerHelper::SendSyncNoti(pPushClientChannel, &stCtlHead, pUserSession->m_stMsgHeadCS.m_nDstUin);
 	}
 
 	CRedisSessionBank *pRedisSessionBank = (CRedisSessionBank *)g_Frame.GetBank(BANK_REDIS_SESSION);
