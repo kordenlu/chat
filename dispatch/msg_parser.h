@@ -8,9 +8,9 @@
 #ifndef MSG_PARSER_H_
 #define MSG_PARSER_H_
 
-#include "../../netevent/net_namespace.h"
-#include "../../netevent/net_impl.h"
-#include "../../netevent/net_packet.h"
+#include "netevent/net_namespace.h"
+#include "netevent/net_impl.h"
+#include "netevent/net_packet.h"
 
 #include <string.h>
 

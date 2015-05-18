@@ -6,12 +6,12 @@
  */
 
 #include "subscribe_channel.h"
-#include "../../hiredis/hiredis.h"
-#include "../server_typedef.h"
-#include "../../logger/logger.h"
-#include "../../frame/frame.h"
-#include "../../frame/redissession_bank.h"
-#include "../../common/common_codeengine.h"
+#include "hiredis/hiredis.h"
+#include "server_typedef.h"
+#include "logger/logger.h"
+#include "frame/frame.h"
+#include "frame/redissession_bank.h"
+#include "common/common_codeengine.h"
 #include <string.h>
 
 using namespace FRAME;
@@ -37,15 +37,18 @@ void CSubscribeChannel::OnClosed()
 
 int32_t CSubscribeChannel::Run()
 {
+	int32_t nHasTask = 0;
 	if(m_nRestCount > 0)
 	{
 		--m_nRestCount;
 	}
 	else
 	{
-		LPop(m_pSubscribeSession);
+		LPop(m_pSubscribeSession, m_strChannelKey.c_str());
+		nHasTask = 1;
 	}
-	return 0;
+
+	return nHasTask;
 }
 
 int32_t CSubscribeChannel::OnRedisReply(int32_t nResult, void *pReply, void *pSession)
@@ -95,7 +98,7 @@ int32_t CSubscribeChannel::OnRedisReply(int32_t nResult, void *pReply, void *pSe
 	else
 	{
 		m_nIdleCount++;
-		if(m_nIdleCount > 1)
+		if(m_nIdleCount >= 1)
 		{
 			m_nRestCount = m_nIdleCount;
 			m_nIdleCount = 0;

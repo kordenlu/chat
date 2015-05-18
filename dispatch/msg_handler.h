@@ -8,8 +8,8 @@
 #ifndef MSG_HANDLER_H_
 #define MSG_HANDLER_H_
 
-#include "../../netevent/net_impl.h"
-#include "../../netevent/net_ioadapter.h"
+#include "netevent/net_impl.h"
+#include "netevent/net_ioadapter.h"
 
 using namespace NETEVENT;
 

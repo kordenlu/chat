@@ -6,24 +6,31 @@
  */
 
 #include "redis_config.h"
-#include "../../logger/logger.h"
-#include "../../tinyxml/tinyxml.h"
-#include "../server_typedef.h"
+#include "tinyxml/tinyxml.h"
+#include "logger/logger.h"
+#include "server_typedef.h"
 
 using namespace LOGGER;
 
 //注册到配置管理器
-REGIST_CONFIG(CONFIG_REDIS, CRedisConfig)
+REGIST_CONFIG_SAFE(CONFIG_REDIS, CRedisConfig)
 
 //初始化配置
 int32_t CRedisConfig::Init()
 {
-	TiXmlDocument doc(m_szConfigFile);
-	if (!doc.LoadFile(TIXML_ENCODING_UTF8))
-	{
-		WRITE_WARN_LOG(SERVER_NAME, "%s is not format utf8!\n", m_szConfigFile);
-		return 1;
-	}
+	return 0;
+}
+
+//卸载配置
+int32_t CRedisConfig::Uninit()
+{
+	return 0;
+}
+
+int32_t CRedisConfig::Parser(char *pXMLString)
+{
+	TiXmlDocument doc;
+	doc.Parse(pXMLString, 0, TIXML_ENCODING_UTF8);
 
 	//获取根节点
 	TiXmlElement *pRoot = doc.RootElement();
@@ -44,6 +51,18 @@ int32_t CRedisConfig::Init()
 
 	while(pNode != NULL)
 	{
+		char arrServerName[64];
+		memset(arrServerName, 0, sizeof(arrServerName));
+
+		pszValue = pNode->Attribute("server_name");
+		if(NULL == pszValue)
+		{
+			WRITE_WARN_LOG(SERVER_NAME, "%s is not found server_name node!\n", m_szConfigFile);
+			return 1;
+		}
+
+		strcpy(arrServerName, pszValue);
+
 		int32_t nServerID = 0;
 		pszValue = pNode->Attribute("server_id", &nServerID);
 		if(NULL == pszValue)
@@ -76,39 +95,21 @@ int32_t CRedisConfig::Init()
 		memset(arrChannelKey, 0, sizeof(arrChannelKey));
 
 		pszValue = pNode->Attribute("channel_key");
-		if(NULL == pszValue)
-		{
-			WRITE_WARN_LOG(SERVER_NAME, "%s is not found channel_key node!\n", m_szConfigFile);
-			return 1;
-		}
-
-		strcpy(arrChannelKey, pszValue);
-
-		char arrChannelMode[256];
-		memset(arrChannelMode, 0, sizeof(arrChannelMode));
-
-		pszValue = pNode->Attribute("channel_mode");
 		if(NULL != pszValue)
 		{
-			strcpy(arrChannelMode, pszValue);
+			strcpy(arrChannelKey, pszValue);
 		}
 
+		strcpy(m_arrRedisServerInfo[m_nRedisCount].arrServerName, arrServerName);
 		m_arrRedisServerInfo[m_nRedisCount].nServerID = nServerID;
 		strcpy(m_arrRedisServerInfo[m_nRedisCount].arrServerAddress, arrServerAddress);
 		m_arrRedisServerInfo[m_nRedisCount].nPort = nServerPort;
 		strcpy(m_arrRedisServerInfo[m_nRedisCount].arrChannelKey, arrChannelKey);
-		strcpy(m_arrRedisServerInfo[m_nRedisCount].arrChannelMode, arrChannelMode);
 		++m_nRedisCount;
 
 		pNode = pNode->NextSiblingElement();
 	}
 
-	return 0;
-}
-
-//卸载配置
-int32_t CRedisConfig::Uninit()
-{
 	return 0;
 }
 

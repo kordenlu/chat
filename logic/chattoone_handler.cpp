@@ -6,19 +6,19 @@
  */
 
 #include "chattoone_handler.h"
-#include "../../common/common_datetime.h"
-#include "../../common/common_api.h"
-#include "../../common/common_codeengine.h"
-#include "../../frame/frame.h"
-#include "../../frame/server_helper.h"
-#include "../../frame/redissession_bank.h"
-#include "../../logger/logger.h"
-#include "../../include/cachekey_define.h"
-#include "../../include/control_head.h"
-#include "../../include/typedef.h"
-#include "../config/string_config.h"
-#include "../server_typedef.h"
-#include "../bank/redis_bank.h"
+#include "common/common_datetime.h"
+#include "common/common_api.h"
+#include "common/common_codeengine.h"
+#include "frame/frame.h"
+#include "frame/server_helper.h"
+#include "frame/redissession_bank.h"
+#include "frame/cachekey_define.h"
+#include "logger/logger.h"
+#include "include/control_head.h"
+#include "include/typedef.h"
+#include "config/string_config.h"
+#include "server_typedef.h"
+#include "bank/redis_bank.h"
 
 using namespace LOGGER;
 using namespace FRAME;
@@ -40,7 +40,7 @@ int32_t CChatToOneHandler::ChatToOne(ICtlHead *pCtlHead, IMsgHead *pMsgHead, IMs
 	if(pControlHead->m_nUin != pMsgHeadCS->m_nSrcUin)
 	{
 		CRedisBank *pRedisBank = (CRedisBank *)g_Frame.GetBank(BANK_REDIS);
-		CRedisChannel *pClientRespChannel = pRedisBank->GetRedisChannel(pControlHead->m_nGateID, CLIENT_RESP);
+		CRedisChannel *pClientRespChannel = pRedisBank->GetRedisChannel(pControlHead->m_nGateRedisAddress, pControlHead->m_nGateRedisPort);
 
 		return CServerHelper::KickUser(pControlHead, pMsgHeadCS, pClientRespChannel, KickReason_NotLogined);
 	}
@@ -50,8 +50,6 @@ int32_t CChatToOneHandler::ChatToOne(ICtlHead *pCtlHead, IMsgHead *pMsgHead, IMs
 	{
 		return 0;
 	}
-
-	UserBlackList *pUserBlackList = (UserBlackList *)g_Frame.GetConfig(USER_BLACKLIST);
 
 	CRedisSessionBank *pRedisSessionBank = (CRedisSessionBank *)g_Frame.GetBank(BANK_REDIS_SESSION);
 	RedisSession *pSession = pRedisSessionBank->CreateSession(this, static_cast<RedisReply>(&CChatToOneHandler::OnSessionExistInBlackList),
@@ -65,11 +63,11 @@ int32_t CChatToOneHandler::ChatToOne(ICtlHead *pCtlHead, IMsgHead *pMsgHead, IMs
 			pSessionData->m_arrChatApns, pSessionData->m_nChatApnsSize, sizeof(pSessionData->m_arrChatApns));
 
 	uint32_t nOffset = pSessionData->m_nMsgSize - sizeof(pChatToOneReq->m_nCurTime);
-	CCodeEngine::Encode(pSessionData->m_arrMsg, pSessionData->m_nMsgSize, nOffset, CDateTime::CurrentDateTime().Seconds());
+	CCodeEngine::Encode(pSessionData->m_arrMsg, pSessionData->m_nMsgSize, nOffset, (int32_t)CDateTime::CurrentDateTime().Seconds());
 
 	CRedisBank *pRedisBank = (CRedisBank *)g_Frame.GetBank(BANK_REDIS);
-	CRedisChannel *pRedisChannel = pRedisBank->GetRedisChannel(pUserBlackList->string);
-	pRedisChannel->ZScore(pSession, itoa(pMsgHeadCS->m_nDstUin), pMsgHeadCS->m_nSrcUin);
+	CRedisChannel *pRedisChannel = pRedisBank->GetRedisChannel(UserBlackList::servername, pMsgHeadCS->m_nDstUin);
+	pRedisChannel->ZScore(pSession, CServerHelper::MakeRedisKey(UserBlackList::keyname, pMsgHeadCS->m_nDstUin), pMsgHeadCS->m_nSrcUin);
 
 	return 0;
 }
@@ -84,7 +82,7 @@ int32_t CChatToOneHandler::OnSessionExistInBlackList(int32_t nResult, void *pRep
 	CStringConfig *pStringConfig = (CStringConfig *)g_Frame.GetConfig(CONFIG_STRING);
 
 	CRedisBank *pRedisBank = (CRedisBank *)g_Frame.GetBank(BANK_REDIS);
-	CRedisChannel *pRespChannel = pRedisBank->GetRedisChannel(CLIENT_RESP);
+	CRedisChannel *pRespChannel = pRedisBank->GetRedisChannel(pUserSession->m_stCtlHead.m_nGateRedisAddress, pUserSession->m_stCtlHead.m_nGateRedisPort);
 	if(pRespChannel == NULL)
 	{
 		WRITE_WARN_LOG(SERVER_NAME, "it's not found redis channel by msgid!{msgid=%d, srcuin=%u, dstuin=%u}\n", MSGID_CHATTOONE_RESP,
@@ -121,7 +119,7 @@ int32_t CChatToOneHandler::OnSessionExistInBlackList(int32_t nResult, void *pRep
 	stMsgHeadCS.m_nDstUin = pUserSession->m_stMsgHeadCS.m_nDstUin;
 
 	uint16_t nTotalSize = CServerHelper::MakeMsg(&pUserSession->m_stCtlHead, &stMsgHeadCS, &stChatToOneResp, arrRespBuf, sizeof(arrRespBuf));
-	pRespChannel->RPush(NULL, (char *)arrRespBuf, nTotalSize);
+	pRespChannel->RPush(NULL, CServerHelper::MakeRedisKey(ClientResp::keyname, pUserSession->m_stCtlHead.m_nGateID), (char *)arrRespBuf, nTotalSize);
 
 	g_Frame.Dump(&pUserSession->m_stCtlHead, &stMsgHeadCS, &stChatToOneResp, "send ");
 
@@ -129,17 +127,16 @@ int32_t CChatToOneHandler::OnSessionExistInBlackList(int32_t nResult, void *pRep
 	{
 		pRedisSession->SetHandleRedisReply(static_cast<RedisReply>(&CChatToOneHandler::OnSessionGetUserUnreadMsgCount));
 
-		char *szUin = itoa(pUserSession->m_stMsgHeadCS.m_nDstUin);
-
-		CRedisChannel *pUnreadMsgChannel = pRedisBank->GetRedisChannel(USER_UNREADMSGLIST);
+		CRedisChannel *pUnreadMsgChannel = pRedisBank->GetRedisChannel(UserUnreadMsgList::servername, pUserSession->m_stMsgHeadCS.m_nDstUin);
 		pUnreadMsgChannel->Multi();
-		pUnreadMsgChannel->ZAdd(NULL, szUin, "%ld %b", pUserSession->m_stCtlHead.m_nTimeStamp, pUserSession->m_arrMsg, (size_t)pUserSession->m_nMsgSize);
-		pUnreadMsgChannel->ZCount(NULL, szUin);
+		pUnreadMsgChannel->ZAdd(NULL, CServerHelper::MakeRedisKey(UserUnreadMsgList::keyname, pUserSession->m_stMsgHeadCS.m_nDstUin), "%ld %b",
+				pUserSession->m_stCtlHead.m_nTimeStamp, pUserSession->m_arrMsg, (size_t)pUserSession->m_nMsgSize);
+		pUnreadMsgChannel->ZCount(NULL, CServerHelper::MakeRedisKey(UserUnreadMsgList::keyname, pUserSession->m_stMsgHeadCS.m_nDstUin));
 		pUnreadMsgChannel->Exec(pRedisSession);
 
 		if(pUserSession->m_stCtlHead.m_nPhoneType == enmPhoneType_IPhone)
 		{
-			CRedisChannel *pPushApnsChannel = pRedisBank->GetRedisChannel(PUSH_APNS);
+			CRedisChannel *pPushApnsChannel = pRedisBank->GetRedisChannel(PushApns::servername, pUserSession->m_stMsgHeadCS.m_nDstUin);
 			CServerHelper::PushToAPNS(pPushApnsChannel, pUserSession->m_stMsgHeadCS.m_nSrcUin, pUserSession->m_stMsgHeadCS.m_nDstUin,
 					pUserSession->m_stMsgHeadCS.m_nMsgID, pUserSession->m_arrChatApns, pUserSession->m_nChatApnsSize);
 		}
@@ -184,11 +181,11 @@ int32_t CChatToOneHandler::OnSessionGetUserUnreadMsgCount(int32_t nResult, void 
 	{
 		pRedisSession->SetHandleRedisReply(static_cast<RedisReply>(&CChatToOneHandler::OnSessionGetUserSessionInfo));
 
-		UserSessionInfo *pUserSessionInfo = (UserSessionInfo *)g_Frame.GetConfig(USER_SESSIONINFO);
 		CRedisBank *pRedisBank = (CRedisBank *)g_Frame.GetBank(BANK_REDIS);
-		CRedisChannel *pUserSessionChannel = pRedisBank->GetRedisChannel(USER_SESSIONINFO);
-		pUserSessionChannel->HMGet(pRedisSession, itoa(pUserSession->m_stMsgHeadCS.m_nDstUin), "%s %s %s %s", pUserSessionInfo->clientaddress,
-				pUserSessionInfo->clientport, pUserSessionInfo->sessionid, pUserSessionInfo->gateid);
+		CRedisChannel *pUserSessionChannel = pRedisBank->GetRedisChannel(UserSessionInfo::servername, pUserSession->m_stMsgHeadCS.m_nDstUin);
+		pUserSessionChannel->HMGet(pRedisSession, CServerHelper::MakeRedisKey(UserSessionInfo::keyname, pUserSession->m_stMsgHeadCS.m_nDstUin),
+				"%s %s %s %s %s %s", UserSessionInfo::clientaddress, UserSessionInfo::clientport, UserSessionInfo::sessionid,
+				UserSessionInfo::gateid, UserSessionInfo::gateredisaddress, UserSessionInfo::gateredisport);
 	}
 	else
 	{
@@ -262,6 +259,28 @@ int32_t CChatToOneHandler::OnSessionGetUserSessionInfo(int32_t nResult, void *pR
 				bGetSessionSuccess = false;
 				break;
 			}
+
+			pReplyElement = pRedisReply->element[4];
+			if(pReplyElement->type != REDIS_REPLY_NIL)
+			{
+				stCtlHead.m_nGateRedisAddress = atoi(pReplyElement->str);
+			}
+			else
+			{
+				bGetSessionSuccess = false;
+				break;
+			}
+
+			pReplyElement = pRedisReply->element[5];
+			if(pReplyElement->type != REDIS_REPLY_NIL)
+			{
+				stCtlHead.m_nGateRedisPort = atoi(pReplyElement->str);
+			}
+			else
+			{
+				bGetSessionSuccess = false;
+				break;
+			}
 		}
 		else
 		{
@@ -273,7 +292,7 @@ int32_t CChatToOneHandler::OnSessionGetUserSessionInfo(int32_t nResult, void *pR
 	if(bGetSessionSuccess)
 	{
 		CRedisBank *pRedisBank = (CRedisBank *)g_Frame.GetBank(BANK_REDIS);
-		CRedisChannel *pPushClientChannel = pRedisBank->GetRedisChannel(stCtlHead.m_nGateID, CLIENT_RESP);
+		CRedisChannel *pPushClientChannel = pRedisBank->GetRedisChannel(stCtlHead.m_nGateRedisAddress, stCtlHead.m_nGateRedisPort);
 
 		CServerHelper::SendSyncNoti(pPushClientChannel, &stCtlHead, pUserSession->m_stMsgHeadCS.m_nDstUin);
 	}
@@ -291,7 +310,7 @@ int32_t CChatToOneHandler::OnRedisSessionTimeout(void *pTimerData)
 	UserSession *pUserSession = (UserSession *)pRedisSession->GetSessionData();
 
 	CRedisBank *pRedisBank = (CRedisBank *)g_Frame.GetBank(BANK_REDIS);
-	CRedisChannel *pRespChannel = pRedisBank->GetRedisChannel(CLIENT_RESP);
+	CRedisChannel *pRespChannel = pRedisBank->GetRedisChannel(pUserSession->m_stCtlHead.m_nGateRedisAddress, pUserSession->m_stCtlHead.m_nGateRedisPort);
 	if(pRespChannel == NULL)
 	{
 		WRITE_WARN_LOG(SERVER_NAME, "it's not found redis channel by msgid!{msgid=%d, srcuin=%u, dstuin=%u}\n", MSGID_CHATTOONE_RESP,
@@ -315,7 +334,7 @@ int32_t CChatToOneHandler::OnRedisSessionTimeout(void *pTimerData)
 	stChatToOneResp.m_strTips = pStringConfig->GetString(stMsgHeadCS.m_nMsgID, stChatToOneResp.m_nResult);
 
 	uint16_t nTotalSize = CServerHelper::MakeMsg(&pUserSession->m_stCtlHead, &stMsgHeadCS, &stChatToOneResp, arrRespBuf, sizeof(arrRespBuf));
-	pRespChannel->RPush(NULL, (char *)arrRespBuf, nTotalSize);
+	pRespChannel->RPush(NULL, CServerHelper::MakeRedisKey(ClientResp::keyname, pUserSession->m_stCtlHead.m_nGateID), (char *)arrRespBuf, nTotalSize);
 
 	g_Frame.Dump(&pUserSession->m_stCtlHead, &stMsgHeadCS, &stChatToOneResp, "send ");
 

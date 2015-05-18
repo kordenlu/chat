@@ -8,7 +8,7 @@
 #ifndef CHECKCONN_HANDLER_H_
 #define CHECKCONN_HANDLER_H_
 
-#include "../../common/common_object.h"
+#include "common/common_object.h"
 
 class CCheckConnHandler : public CBaseObject
 {

@@ -13,17 +13,24 @@
 using namespace LOGGER;
 
 //注册到配置管理器
-REGIST_CONFIG(CONFIG_STRING, CStringConfig)
+REGIST_CONFIG_SAFE(CONFIG_STRING, CStringConfig)
 
 //初始化配置
 int32_t CStringConfig::Init()
 {
-	TiXmlDocument doc(m_szConfigFile);
-	if (!doc.LoadFile(TIXML_ENCODING_UTF8))
-	{
-		WRITE_WARN_LOG(SERVER_NAME, "%s is not format utf8!\n", m_szConfigFile);
-		return 1;
-	}
+	return 0;
+}
+
+//卸载配置
+int32_t CStringConfig::Uninit()
+{
+	return 0;
+}
+
+int32_t CStringConfig::Parser(char *pXMLString)
+{
+	TiXmlDocument doc;
+	doc.Parse(pXMLString, 0, TIXML_ENCODING_UTF8);
 
 	//获取根节点
 	TiXmlElement *pRoot = doc.RootElement();
@@ -80,12 +87,6 @@ int32_t CStringConfig::Init()
 		pMsg = pMsg->NextSiblingElement();
 	}
 
-	return 0;
-}
-
-//卸载配置
-int32_t CStringConfig::Uninit()
-{
 	return 0;
 }
 

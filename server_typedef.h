@@ -8,14 +8,14 @@
 #ifndef SERVER_TYPEDEF_H_
 #define SERVER_TYPEDEF_H_
 
-#include "../common/common_typedef.h"
+#include "common/common_typedef.h"
 
 #define SERVER_NAME			"chat"
 
 #define CONFIG_SERVER		"./server_config.xml"
-#define CONFIG_REDIS		"./redis_config.xml"
+#define CONFIG_REDIS		"redis_config.xml"
 #define CONFIG_MSGDISPATCH	"./msgdispatch_config.xml"
-#define CONFIG_STRING		"./string_config.xml"
+#define CONFIG_STRING		"string_config.xml"
 
 #define BANK_REDIS			"redis_bank"
 

@@ -6,9 +6,9 @@
  */
 
 #include "msg_parser.h"
-#include "../server_typedef.h"
-#include "../../include/msg_head.h"
-#include "../../common/common_codeengine.h"
+#include "server_typedef.h"
+#include "include/msg_head.h"
+#include "common/common_codeengine.h"
 
 int32_t CMsgParser::Init()
 {

@@ -33,6 +33,8 @@ public:
 	//卸载配置
 	virtual int32_t Uninit();
 
+	virtual int32_t Parser(char *pXMLString);
+
 	string GetString(int32_t nMsgID, int32_t nResult);
 
 protected:

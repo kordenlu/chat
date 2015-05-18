@@ -8,10 +8,10 @@
 #ifndef REGIST_MESSAGE_H_
 #define REGIST_MESSAGE_H_
 
-#include "../frame/frame.h"
-#include "../include/msg_head.h"
-#include "../include/control_head.h"
-#include "../include/chat_msg.h"
+#include "frame/frame.h"
+#include "include/msg_head.h"
+#include "include/control_head.h"
+#include "include/chat_msg.h"
 #include "logic/chattoone_handler.h"
 #include "logic/chatread_handler.h"
 

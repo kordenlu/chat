@@ -6,10 +6,10 @@
  */
 
 #include "checkconn_handler.h"
-#include "../bank/redis_bank.h"
-#include "../server_typedef.h"
-#include "../../frame/frame.h"
-#include "../../logger/logger.h"
+#include "bank/redis_bank.h"
+#include "server_typedef.h"
+#include "frame/frame.h"
+#include "logger/logger.h"
 
 using namespace FRAME;
 using namespace LOGGER;

@@ -100,4 +100,8 @@ int32_t CServerConfig::Uninit()
 	return 0;
 }
 
-
+int32_t CServerConfig::Parser(char *pXMLString)
+{
+	WRITE_WARN_LOG(SERVER_NAME, "%s need to init on local!\n", m_szConfigFile);
+	return 1;
+}

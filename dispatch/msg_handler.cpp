@@ -5,13 +5,13 @@
  *      Author: Administrator
  */
 
-#include "../../logger/logger.h"
-#include "../../frame/frame_msghandle.h"
-#include "../../frame/frame_define.h"
-#include "../../frame/frame.h"
-#include "../server_typedef.h"
+#include "logger/logger.h"
+#include "frame/frame_msghandle.h"
+#include "frame/frame_define.h"
+#include "frame/frame.h"
+#include "server_typedef.h"
 #include "msg_handler.h"
-#include "../../include/account_msg.h"
+#include "include/account_msg.h"
 
 using namespace LOGGER;
 using namespace FRAME;

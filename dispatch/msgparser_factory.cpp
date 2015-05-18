@@ -7,7 +7,7 @@
 
 #include "msgparser_factory.h"
 #include "msg_parser.h"
-#include "../../common/common_memmgt.h"
+#include "common/common_memmgt.h"
 
 CMsgParserFactory::CMsgParserFactory()
 {
