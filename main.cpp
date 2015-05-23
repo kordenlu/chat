@@ -40,8 +40,8 @@ int32_t main(int32_t argc, char* argv[])
 {
 	srand((int)time(0));
 
-	//启动日志线程
-	CLogger::Start();
+//	//启动日志线程
+//	CLogger::Start();
 
 	char *szCtlAddress = NULL;
 	//读取命令行参数
