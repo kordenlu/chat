@@ -23,13 +23,21 @@ class CChatToOneHandler : public CBaseObject
 {
 	struct UserSession
 	{
+		enum
+		{
+			enmSessionType_Other	= 0x00,
+			enmSessionType_PushApns = 0x01,
+		};
+
 		UserSession()
 		{
+			m_nSessionType = enmSessionType_Other;
 			m_nMsgSize = 0;
 			m_nChatApnsSize = 0;
 		}
 		ControlHead			m_stCtlHead;
 		MsgHeadCS			m_stMsgHeadCS;
+		int32_t				m_nSessionType;
 		uint16_t				m_nMsgSize;
 		uint8_t				m_arrMsg[1024];
 		int32_t				m_nChatApnsSize;
@@ -54,6 +62,8 @@ public:
 	int32_t ChatToOne(ICtlHead *pCtlHead, IMsgHead *pMsgHead, IMsgBody *pMsgBody, uint8_t *pBuf, int32_t nBufSize);
 
 	int32_t OnSessionExistInBlackList(int32_t nResult, void *pReply, void *pSession);
+
+	int32_t OnSessionGetPhoneType(int32_t nResult, void *pReply, void *pSession);
 
 	int32_t OnSessionGetUserUnreadMsgCount(int32_t nResult, void *pReply, void *pSession);
 

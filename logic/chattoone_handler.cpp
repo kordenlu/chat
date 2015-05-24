@@ -37,7 +37,7 @@ int32_t CChatToOneHandler::ChatToOne(ICtlHead *pCtlHead, IMsgHead *pMsgHead, IMs
 		return 0;
 	}
 
-	if(pControlHead->m_nUin != pMsgHeadCS->m_nSrcUin)
+	if((pControlHead->m_nUin == 0) || (pControlHead->m_nUin != pMsgHeadCS->m_nSrcUin))
 	{
 		CRedisBank *pRedisBank = (CRedisBank *)g_Frame.GetBank(BANK_REDIS);
 		CRedisChannel *pClientRespChannel = pRedisBank->GetRedisChannel(pControlHead->m_nGateRedisAddress, pControlHead->m_nGateRedisPort);
@@ -131,21 +131,57 @@ int32_t CChatToOneHandler::OnSessionExistInBlackList(int32_t nResult, void *pRep
 		pUnreadMsgChannel->Multi();
 		pUnreadMsgChannel->ZAdd(NULL, CServerHelper::MakeRedisKey(UserUnreadMsgList::keyname, pUserSession->m_stMsgHeadCS.m_nDstUin), "%ld %b",
 				pUserSession->m_stCtlHead.m_nTimeStamp, pUserSession->m_arrMsg, (size_t)pUserSession->m_nMsgSize);
-		pUnreadMsgChannel->ZCount(NULL, CServerHelper::MakeRedisKey(UserUnreadMsgList::keyname, pUserSession->m_stMsgHeadCS.m_nDstUin));
+		pUnreadMsgChannel->ZCard(NULL, CServerHelper::MakeRedisKey(UserUnreadMsgList::keyname, pUserSession->m_stMsgHeadCS.m_nDstUin));
 		pUnreadMsgChannel->Exec(pRedisSession);
 
-		if(pUserSession->m_stCtlHead.m_nPhoneType == enmPhoneType_IPhone)
-		{
-			CRedisChannel *pPushApnsChannel = pRedisBank->GetRedisChannel(PushApns::servername, pUserSession->m_stMsgHeadCS.m_nDstUin);
-			CServerHelper::PushToAPNS(pPushApnsChannel, pUserSession->m_stMsgHeadCS.m_nSrcUin, pUserSession->m_stMsgHeadCS.m_nDstUin,
-					pUserSession->m_stMsgHeadCS.m_nMsgID, pUserSession->m_arrChatApns, pUserSession->m_nChatApnsSize);
-		}
+		RedisSession *pGetPhoneTypeSession = pRedisSessionBank->CreateSession(this, static_cast<RedisReply>(&CChatToOneHandler::OnSessionGetPhoneType),
+				static_cast<TimerProc>(&CChatToOneHandler::OnRedisSessionTimeout));
+		UserSession *pSessionData = new(pGetPhoneTypeSession->GetSessionData()) UserSession();
+		*pSessionData = *pUserSession;
+		pSessionData->m_nSessionType = UserSession::enmSessionType_PushApns;
+
+		CRedisChannel *pRedisChannel = pRedisBank->GetRedisChannel(UserBaseInfo::servername, pUserSession->m_stMsgHeadCS.m_nDstUin);
+		pRedisChannel->HMGet(pGetPhoneTypeSession, CServerHelper::MakeRedisKey(UserBaseInfo::keyname, pUserSession->m_stMsgHeadCS.m_nDstUin),
+				"%s", UserBaseInfo::phonetype);
 	}
 	else
 	{
 		pRedisSessionBank->DestroySession(pRedisSession);
 	}
 
+	return 0;
+}
+
+int32_t CChatToOneHandler::OnSessionGetPhoneType(int32_t nResult, void *pReply, void *pSession)
+{
+	redisReply *pRedisReply = (redisReply *)pReply;
+	RedisSession *pRedisSession = (RedisSession *)pSession;
+	UserSession *pUserSession = (UserSession *)pRedisSession->GetSessionData();
+
+	CRedisSessionBank *pRedisSessionBank = (CRedisSessionBank *)g_Frame.GetBank(BANK_REDIS_SESSION);
+
+	uint8_t nPhoneType = 255;
+	do
+	{
+		if(pRedisReply->type == REDIS_REPLY_ARRAY)
+		{
+			redisReply *pReplyElement = pRedisReply->element[0];
+			if(pReplyElement->type != REDIS_REPLY_NIL)
+			{
+				nPhoneType = atoi(pReplyElement->str);
+			}
+		}
+	}while(0);
+
+	if(nPhoneType == enmPhoneType_IPhone)
+	{
+		CRedisBank *pRedisBank = (CRedisBank *)g_Frame.GetBank(BANK_REDIS);
+		CRedisChannel *pPushApnsChannel = pRedisBank->GetRedisChannel(PushApns::servername, pUserSession->m_stMsgHeadCS.m_nDstUin);
+		CServerHelper::PushToAPNS(pPushApnsChannel, pUserSession->m_stMsgHeadCS.m_nSrcUin, pUserSession->m_stMsgHeadCS.m_nDstUin,
+				pUserSession->m_stMsgHeadCS.m_nMsgID, pUserSession->m_arrChatApns, pUserSession->m_nChatApnsSize);
+	}
+
+	pRedisSessionBank->DestroySession(pRedisSession);
 	return 0;
 }
 
@@ -309,34 +345,37 @@ int32_t CChatToOneHandler::OnRedisSessionTimeout(void *pTimerData)
 	RedisSession *pRedisSession = (RedisSession *)pTimerData;
 	UserSession *pUserSession = (UserSession *)pRedisSession->GetSessionData();
 
-	CRedisBank *pRedisBank = (CRedisBank *)g_Frame.GetBank(BANK_REDIS);
-	CRedisChannel *pRespChannel = pRedisBank->GetRedisChannel(pUserSession->m_stCtlHead.m_nGateRedisAddress, pUserSession->m_stCtlHead.m_nGateRedisPort);
-	if(pRespChannel == NULL)
+	if(pUserSession->m_nSessionType == UserSession::enmSessionType_Other)
 	{
-		WRITE_WARN_LOG(SERVER_NAME, "it's not found redis channel by msgid!{msgid=%d, srcuin=%u, dstuin=%u}\n", MSGID_CHATTOONE_RESP,
-				pUserSession->m_stMsgHeadCS.m_nSrcUin, pUserSession->m_stMsgHeadCS.m_nDstUin);
-		pRedisSessionBank->DestroySession(pRedisSession);
-		return 0;
+		CRedisBank *pRedisBank = (CRedisBank *)g_Frame.GetBank(BANK_REDIS);
+		CRedisChannel *pRespChannel = pRedisBank->GetRedisChannel(pUserSession->m_stCtlHead.m_nGateRedisAddress, pUserSession->m_stCtlHead.m_nGateRedisPort);
+		if(pRespChannel == NULL)
+		{
+			WRITE_WARN_LOG(SERVER_NAME, "it's not found redis channel by msgid!{msgid=%d, srcuin=%u, dstuin=%u}\n", MSGID_CHATTOONE_RESP,
+					pUserSession->m_stMsgHeadCS.m_nSrcUin, pUserSession->m_stMsgHeadCS.m_nDstUin);
+			pRedisSessionBank->DestroySession(pRedisSession);
+			return 0;
+		}
+
+		CStringConfig *pStringConfig = (CStringConfig *)g_Frame.GetConfig(CONFIG_STRING);
+
+		uint8_t arrRespBuf[MAX_MSG_SIZE];
+
+		MsgHeadCS stMsgHeadCS;
+		stMsgHeadCS.m_nMsgID = MSGID_CHATTOONE_RESP;
+		stMsgHeadCS.m_nSeq = pUserSession->m_stMsgHeadCS.m_nSeq;
+		stMsgHeadCS.m_nSrcUin = pUserSession->m_stMsgHeadCS.m_nSrcUin;
+		stMsgHeadCS.m_nDstUin = pUserSession->m_stMsgHeadCS.m_nDstUin;
+
+		CChatToOneResp stChatToOneResp;
+		stChatToOneResp.m_nResult = CChatToOneResp::enmResult_Unknown;
+		stChatToOneResp.m_strTips = pStringConfig->GetString(stMsgHeadCS.m_nMsgID, stChatToOneResp.m_nResult);
+
+		uint16_t nTotalSize = CServerHelper::MakeMsg(&pUserSession->m_stCtlHead, &stMsgHeadCS, &stChatToOneResp, arrRespBuf, sizeof(arrRespBuf));
+		pRespChannel->RPush(NULL, CServerHelper::MakeRedisKey(ClientResp::keyname, pUserSession->m_stCtlHead.m_nGateID), (char *)arrRespBuf, nTotalSize);
+
+		g_Frame.Dump(&pUserSession->m_stCtlHead, &stMsgHeadCS, &stChatToOneResp, "send ");
 	}
-
-	CStringConfig *pStringConfig = (CStringConfig *)g_Frame.GetConfig(CONFIG_STRING);
-
-	uint8_t arrRespBuf[MAX_MSG_SIZE];
-
-	MsgHeadCS stMsgHeadCS;
-	stMsgHeadCS.m_nMsgID = MSGID_CHATTOONE_RESP;
-	stMsgHeadCS.m_nSeq = pUserSession->m_stMsgHeadCS.m_nSeq;
-	stMsgHeadCS.m_nSrcUin = pUserSession->m_stMsgHeadCS.m_nSrcUin;
-	stMsgHeadCS.m_nDstUin = pUserSession->m_stMsgHeadCS.m_nDstUin;
-
-	CChatToOneResp stChatToOneResp;
-	stChatToOneResp.m_nResult = CChatToOneResp::enmResult_Unknown;
-	stChatToOneResp.m_strTips = pStringConfig->GetString(stMsgHeadCS.m_nMsgID, stChatToOneResp.m_nResult);
-
-	uint16_t nTotalSize = CServerHelper::MakeMsg(&pUserSession->m_stCtlHead, &stMsgHeadCS, &stChatToOneResp, arrRespBuf, sizeof(arrRespBuf));
-	pRespChannel->RPush(NULL, CServerHelper::MakeRedisKey(ClientResp::keyname, pUserSession->m_stCtlHead.m_nGateID), (char *)arrRespBuf, nTotalSize);
-
-	g_Frame.Dump(&pUserSession->m_stCtlHead, &stMsgHeadCS, &stChatToOneResp, "send ");
 
 	pRedisSessionBank->DestroySession(pRedisSession);
 	return 0;
