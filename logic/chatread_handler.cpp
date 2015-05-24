@@ -36,7 +36,7 @@ int32_t CChatReadHandler::ChatRead(ICtlHead *pCtlHead, IMsgHead *pMsgHead, IMsgB
 		return 0;
 	}
 
-	if(pControlHead->m_nUin != pMsgHeadCS->m_nSrcUin)
+	if((pControlHead->m_nUin == 0) || (pControlHead->m_nUin != pMsgHeadCS->m_nSrcUin))
 	{
 		CRedisBank *pRedisBank = (CRedisBank *)g_Frame.GetBank(BANK_REDIS);
 		CRedisChannel *pClientRespChannel = pRedisBank->GetRedisChannel(pControlHead->m_nGateRedisAddress, pControlHead->m_nGateRedisPort);
@@ -65,7 +65,7 @@ int32_t CChatReadHandler::ChatRead(ICtlHead *pCtlHead, IMsgHead *pMsgHead, IMsgB
 	pUnreadMsgChannel->Multi();
 	pUnreadMsgChannel->ZAdd(NULL, CServerHelper::MakeRedisKey(UserUnreadMsgList::keyname, pMsgHeadCS->m_nDstUin), "%ld %b",
 			pControlHead->m_nTimeStamp, pMsgBuf, nMsgSize);
-	pUnreadMsgChannel->ZCount(NULL, CServerHelper::MakeRedisKey(UserUnreadMsgList::keyname, pMsgHeadCS->m_nDstUin));
+	pUnreadMsgChannel->ZCard(NULL, CServerHelper::MakeRedisKey(UserUnreadMsgList::keyname, pMsgHeadCS->m_nDstUin));
 	pUnreadMsgChannel->Exec(pSession);
 
 	uint8_t arrRespBuf[MAX_MSG_SIZE];
