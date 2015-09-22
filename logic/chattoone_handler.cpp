@@ -57,6 +57,7 @@ int32_t CChatToOneHandler::ChatToOne(ICtlHead *pCtlHead, IMsgHead *pMsgHead, IMs
 	UserSession *pSessionData = new(pSession->GetSessionData()) UserSession();
 	pSessionData->m_stCtlHead = *pControlHead;
 	pSessionData->m_stMsgHeadCS = *pMsgHeadCS;
+	pSessionData->m_nChatMsgType = pChatToOneReq->m_nChatMsgType;
 	pSessionData->m_nMsgSize = pMsgHeadCS->m_nTotalSize;
 	memcpy(pSessionData->m_arrMsg, pBuf + pControlHead->m_nHeadSize, nBufSize - pControlHead->m_nHeadSize);
 	CServerHelper::Split((uint8_t *)(pChatToOneReq->m_strChatMsg.c_str()), pChatToOneReq->m_strChatMsg.size(),
@@ -175,6 +176,17 @@ int32_t CChatToOneHandler::OnSessionGetPhoneType(int32_t nResult, void *pReply, 
 
 	if(nPhoneType == enmPhoneType_IPhone)
 	{
+		if(pUserSession->m_nChatMsgType == CChatToOneReq::enmChatMsgType_Voice)
+		{
+			pUserSession->m_nChatApnsSize = 12;
+			memcpy(pUserSession->m_arrChatApns, "发来语音", pUserSession->m_nChatApnsSize);
+		}
+		else if(pUserSession->m_nChatMsgType == CChatToOneReq::enmChatMsgType_Pic)
+		{
+			pUserSession->m_nChatApnsSize = 12;
+			memcpy(pUserSession->m_arrChatApns, "发来图片", pUserSession->m_nChatApnsSize);
+		}
+
 		CRedisBank *pRedisBank = (CRedisBank *)g_Frame.GetBank(BANK_REDIS);
 		CRedisChannel *pPushApnsChannel = pRedisBank->GetRedisChannel(PushApns::servername, pUserSession->m_stMsgHeadCS.m_nDstUin);
 		CServerHelper::PushToAPNS(pPushApnsChannel, pUserSession->m_stMsgHeadCS.m_nSrcUin, pUserSession->m_stMsgHeadCS.m_nDstUin,
